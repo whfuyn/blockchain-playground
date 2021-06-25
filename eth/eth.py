@@ -77,6 +77,13 @@ def gen_keys(key_count, keystore):
 
 
 def gen_genesis(addrs):
+    # TODO:
+    # I'm not sure whether this sorting is correct.
+    # But it seems to work regardless of my sorting.
+    # EIP-225 says:
+    # "The list of signers in checkpoint block extra-data sections
+    #  must be sorted in ascending order."
+    addrs = sorted(addrs, key=lambda addr: int(addr, 16))
     genesis = json.loads(genesis_block)
 
     # build extradata for clique, the Proof of Authority consensus engine
@@ -155,7 +162,7 @@ def init_net(authority_count):
     authorities = gen_keys(authority_count, keystore)
 
     print("Generating genesis block..")
-    genesis = gen_genesis(authorities)
+    genesis = gen_genesis(authorities.keys())
 
     print("Initializing nodes data..")
     for addr, sk in authorities.items():
