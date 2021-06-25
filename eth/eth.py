@@ -26,7 +26,7 @@ genesis_block = '''
     }
   },
   "difficulty": "1",
-  "gasLimit": "8000000",
+  "gasLimit": "8000000"
 }
 '''
 # Example `extradata` and `alloc`
