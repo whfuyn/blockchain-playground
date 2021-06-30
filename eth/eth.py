@@ -80,16 +80,16 @@ def gen_genesis(addrs):
     # TODO:
     # I'm not sure whether this sorting is correct.
     # But it seems to work regardless of my sorting.
-    # EIP-225 says:
+    # EIP-225 (https://eips.ethereum.org/EIPS/eip-225) says:
     # "The list of signers in checkpoint block extra-data sections
     #  must be sorted in ascending order."
     addrs = sorted(addrs, key=lambda addr: int(addr, 16))
     genesis = json.loads(genesis_block)
 
     # build extradata for clique, the Proof of Authority consensus engine
-    ex_vanity = '0' * 32 * 2
-    ex_seal = '0' * 65 * 2
-    extradata = '0x' + ex_vanity + ''.join(addrs) + ex_seal
+    extra_vanity = '0' * 32 * 2
+    extra_seal = '0' * 65 * 2
+    extradata = '0x' + extra_vanity + ''.join(addrs) + extra_seal
     genesis["extradata"] = extradata
 
     # build init balance
