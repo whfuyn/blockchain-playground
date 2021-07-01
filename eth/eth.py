@@ -37,6 +37,20 @@ genesis_block = '''
 #   }
 
 
+def run_cmd(cmd):
+    try:
+        p = subprocess.run(cmd, check=True, text=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(e.stderr)
+    return p.stdout.strip()
+
+
+def spawn_cmd(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
+    return subprocess.Popen(
+        cmd, text=True, stdout=stdout, stderr=stderr
+    )
+
+
 def parse_key_output(output):
     addr_begin = 'Public address of the key:   '
     sk_begin = 'Path of the secret key file: '
@@ -58,7 +72,7 @@ def gen_keys(key_count, keystore):
     keys = {}
     with tempfile.TemporaryDirectory() as tmpstore:
         super_secret = os.path.join(output_dir, 'super_secret')
-        cmd = [
+        create_cmd = [
             'geth',
             '--datadir', tmpstore,
             'account', 'new',
@@ -66,8 +80,8 @@ def gen_keys(key_count, keystore):
         ]
 
         for _ in range(key_count):
-            p = subprocess.run(cmd, text=True, check=True, capture_output=True)
-            addr, sk_path = parse_key_output(p.stdout)
+            key_output = run_cmd(create_cmd)
+            addr, sk_path = parse_key_output(key_output)
 
             to = os.path.join(keystore, addr)
             shutil.copyfile(sk_path, to)
@@ -116,9 +130,10 @@ def mkdirp(d):
     pathlib.Path(d).mkdir(parents=True, exist_ok=True)
 
 
-def start_node(datadir, authority, password, networkid, port, bootnodes):
+def start_node(
+    datadir, authority, password, networkid, port, rpc_port, bootnodes
+):
     networkid = str(networkid)
-    port = str(port)
     log = open(os.path.join(datadir, 'geth.log'), 'a')
     start_cmd = [
         'geth',
@@ -127,13 +142,16 @@ def start_node(datadir, authority, password, networkid, port, bootnodes):
         '--unlock', authority,
         '--password', password,
         '--mine',
-        '--port', port,
+        '--port', str(port),
+        '--http',
+        '--http.addr', "0.0.0.0",
+        '--http.port', str(rpc_port),
+        '--allow-insecure-unlock',
         '--syncmode', 'full',
         '--bootnodes', ','.join(bootnodes),
     ]
-    print(start_cmd)
 
-    return subprocess.Popen(start_cmd, text=True, stdout=log, stderr=log)
+    return spawn_cmd(start_cmd, log, log)
 
 
 def init_node(datadir, genesis, authority_sk, password):
@@ -145,7 +163,7 @@ def init_node(datadir, genesis, authority_sk, password):
     shutil.copy(authority_sk, keystore)
 
     init_cmd = ['geth', '--datadir', datadir, 'init', genesis]
-    subprocess.run(init_cmd, text=True, check=True, capture_output=True)
+    run_cmd(init_cmd)
 
 
 def init_net(authority_count):
@@ -182,22 +200,26 @@ def start_net():
 
     pid_list = []
     port = 30303
+    rpc_port = 8545
     node_handles = []
 
     # start nodes
     bootnodes = []
     for addr in addrs:
         datadir = os.path.join(nodes, addr)
-        p = start_node(datadir, addr, super_secret, networkid, port, bootnodes)
+        p = start_node(
+            datadir, addr, super_secret, networkid, port, rpc_port, bootnodes
+        )
         if not bootnodes:
-            wait_time = 10
+            wait_time = 5
             print(f'Sleep {wait_time} seconds, wait for bootnode ready..')
             time.sleep(wait_time)
             bootnodes.append(get_node_url(datadir))
         pid_list.append(str(p.pid))
         node_handles.append(p)
-        print(f'Node 0x{addr} started at port {port}.')
+        print(f'Node 0x{addr} started at port {port} and rpc_port {rpc_port}.')
         port += 1
+        rpc_port += 1
 
     with open(os.path.join(output_dir, 'pid_list'), 'wt') as f:
         f.write('\n'.join(pid_list))
@@ -209,19 +231,10 @@ def start_net():
 
 def get_node_url(datadir):
     ipc = os.path.join(datadir, 'geth.ipc')
-    cmd = ['geth', 'attach', ipc, '--exec', 'admin.nodeInfo.enode']
-
-    p = subprocess.run(cmd, text=True, check=True, capture_output=True)
-    node_url = p.stdout.strip().strip('"')
+    node_url = run_cmd(
+        ['geth', 'attach', ipc, '--exec', 'admin.nodeInfo.enode']
+    ).strip('"')
     return node_url
-
-
-def add_peer(datadir, peer_url):
-    ipc = os.path.join(datadir, 'geth.ipc')
-    add_peer = f'admin.addPeer("{peer_url}")'
-    cmd = ['geth', 'attach', ipc, '--exec', add_peer]
-
-    subprocess.run(cmd, text=True, check=True, stdout=subprocess.DEVNULL)
 
 
 def stop_net():
@@ -229,7 +242,7 @@ def stop_net():
     if os.path.exists(pid_list):
         with open(pid_list, 'rt') as f:
             for l in f.read().splitlines():
-                subprocess.run(['kill', l])
+                run_cmd(['kill', l])
 
 
 def remove_net():
@@ -241,7 +254,7 @@ def main():
     # stop_net()
     # print('removing net')
     # remove_net()
-    if not os.path.exists(output_dir):
+    if not os.path.exists(output_dir) or not os.listdir(output_dir):
         print('init net')
         init_net(4)
     print('start net')
