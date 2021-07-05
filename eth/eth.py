@@ -146,6 +146,7 @@ def start_node(
         '--http',
         '--http.addr', "0.0.0.0",
         '--http.port', str(rpc_port),
+        '--http.api', 'db,eth,net,web3,personal,web3',
         '--allow-insecure-unlock',
         '--syncmode', 'full',
         '--bootnodes', ','.join(bootnodes),
