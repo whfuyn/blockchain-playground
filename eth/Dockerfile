@@ -3,4 +3,4 @@ WORKDIR /eth
 COPY bin/geth /usr/bin
 RUN chmod +x /usr/bin/geth
 COPY eth.py .
-CMD ["python", "eth.py" ]
+ENTRYPOINT ["python", "eth.py" ]

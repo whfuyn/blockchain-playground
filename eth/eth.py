@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import json
 import time
+import argparse
 
 output_dir = os.path.join(os.getcwd(), "tutorial-net")
 
@@ -103,8 +104,7 @@ def gen_genesis(addrs):
     # build extradata for clique, the Proof of Authority consensus engine
     extra_vanity = '0' * 32 * 2
     extra_seal = '0' * 65 * 2
-    extradata = '0x' + extra_vanity + ''.join(addrs) + extra_seal
-    genesis["extradata"] = extradata
+    genesis["extradata"] = '0x' + extra_vanity + ''.join(addrs) + extra_seal
 
     # build init balance
     balance = {
@@ -147,6 +147,7 @@ def start_node(
         '--http.addr', "0.0.0.0",
         '--http.port', str(rpc_port),
         '--http.api', 'db,eth,net,web3,personal,web3',
+        '--http.corsdomain', '*',
         '--allow-insecure-unlock',
         '--syncmode', 'full',
         '--bootnodes', ','.join(bootnodes),
@@ -251,13 +252,23 @@ def remove_net():
 
 
 def main():
-    # print('stop net')
-    # stop_net()
-    # print('removing net')
-    # remove_net()
+    parser = argparse.ArgumentParser(
+        description='Sample Ethereum PoA network.'
+    )
+    parser.add_argument(
+        '--authority_num',
+        type=int,
+        help='the number of authority for this PoA network',
+        default=4,
+    )
+    authority_num = parser.parse_args().authority_num
+
     if not os.path.exists(output_dir) or not os.listdir(output_dir):
-        print('init net')
-        init_net(4)
+        print(f'Initializing a new network with {authority_num} authorities..')
+        init_net(authority_num)
+    else:
+        print('The network is already intitialized.')
+
     print('start net')
     start_net()
 
