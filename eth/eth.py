@@ -131,7 +131,9 @@ def mkdirp(d):
 
 
 def start_node(
-    datadir, authority, password, networkid, port, rpc_port, bootnodes
+    datadir, authority, password,
+    networkid, port, rpc_port, vhosts,
+    bootnodes
 ):
     networkid = str(networkid)
     log = open(os.path.join(datadir, 'geth.log'), 'a')
@@ -148,6 +150,7 @@ def start_node(
         '--http.port', str(rpc_port),
         '--http.api', 'db,eth,net,web3,personal,web3',
         '--http.corsdomain', '*',
+        '--http.vhosts', ','.join(vhosts),
         '--allow-insecure-unlock',
         '--syncmode', 'full',
         '--bootnodes', ','.join(bootnodes),
@@ -191,7 +194,7 @@ def init_net(authority_count):
     print("Finished. Authorities are ", list(authorities.keys()))
 
 
-def start_net():
+def start_net(vhosts):
     nodes = os.path.join(output_dir, 'nodes')
     super_secret = os.path.join(output_dir, 'super_secret')
 
@@ -210,7 +213,9 @@ def start_net():
     for addr in addrs:
         datadir = os.path.join(nodes, addr)
         p = start_node(
-            datadir, addr, super_secret, networkid, port, rpc_port, bootnodes
+            datadir, addr, super_secret,
+            networkid, port, rpc_port, vhosts,
+            bootnodes
         )
         if not bootnodes:
             wait_time = 5
@@ -261,7 +266,16 @@ def main():
         help='the number of authority for this PoA network',
         default=4,
     )
-    authority_num = parser.parse_args().authority_num
+    parser.add_argument(
+        '--vhosts',
+        type=str,
+        nargs='+',
+        help='the list of the vhosts to serve RPC requests',
+    )
+
+    args = parser.parse_args()
+    authority_num = args.authority_num
+    vhosts = args.vhosts
 
     if not os.path.exists(output_dir) or not os.listdir(output_dir):
         print(f'Initializing a new network with {authority_num} authorities..')
@@ -270,7 +284,7 @@ def main():
         print('The network is already intitialized.')
 
     print('start net')
-    start_net()
+    start_net(vhosts)
 
 
 if __name__ == '__main__':
