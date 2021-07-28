@@ -278,9 +278,9 @@ def main():
     )
     parser.add_argument(
         '--vhosts',
-        type=str,
         nargs='+',
         help='the list of the vhosts to serve RPC requests',
+        default=['localhost'],
     )
 
     args = parser.parse_args()
