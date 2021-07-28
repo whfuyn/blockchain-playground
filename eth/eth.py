@@ -148,7 +148,7 @@ def start_node(
         '--http',
         '--http.addr', "0.0.0.0",
         '--http.port', str(rpc_port),
-        '--http.api', 'db,eth,net,web3,personal,web3',
+        '--http.api', 'db,eth,net,web3,personal',
         '--http.corsdomain', '*',
         '--http.vhosts', ','.join(vhosts),
         '--allow-insecure-unlock',
@@ -218,10 +218,20 @@ def start_net(vhosts):
             bootnodes
         )
         if not bootnodes:
-            wait_time = 5
-            print(f'Sleep {wait_time} seconds, wait for bootnode ready..')
-            time.sleep(wait_time)
-            bootnodes.append(get_node_url(datadir))
+            while True:
+                try:
+                    wait_time = 5
+                    print(
+                        f'Sleep {wait_time} seconds, wait for bootnode ready..'
+                    )
+                    time.sleep(wait_time)
+                    bootnodes.append(get_node_url(datadir))
+                    break
+                except RuntimeError as e:
+                    if 'connection refused' in str(e):
+                        print("bootnode haven't started yet, retrying..")
+                    else:
+                        raise e
         pid_list.append(str(p.pid))
         node_handles.append(p)
         print(f'Node 0x{addr} started at port {port} and rpc_port {rpc_port}.')
